@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Juno POC</title>
+  </head>
+  <body>
+    <h1>Juno POC</h1>
+
+    <label>
+      <input checked id="confirmed" type="checkbox" />
+      Confirmado
+    </label>
+    <button id="pay-once">Pagamento único</button>
+  </body>
+
+  <script
+    type="text/javascript"
+    src="https://sandbox.boletobancario.com/boletofacil/wro/direct-checkout.min.js"
+  ></script>
+  <script type="text/javascript">
+    const JUNO_PUBLIC_KEY =
+      'A61B53A00A7E454CC6EE545D251E170A8690CB494750B37249EA746DAFAF9B73';
+    const checkout = new DirectCheckout(JUNO_PUBLIC_KEY, false);
+
+    function payOnce() {
+      const confirmed = document.getElementById('confirmed').checked;
+      const cardData = {
+        cardNumber: '5420942354118402',
+        holderName: 'Nome do Titular do Cartão',
+        securityCode: '625',
+        expirationMonth: '05',
+        expirationYear: '2023',
+      };
+
+      checkout.getCardHash(
+        cardData,
+        (cardHash) => {
+          console.log({ cardHash });
+          fetch(`/pay-once?creditCardHash=${cardHash}&confirmed=${confirmed}`, {
+            method: 'POST',
+          })
+            .then((res) => res.json())
+            .then(console.log)
+            .catch(console.error);
+        },
+        console.error
+      );
+    }
+
+    document.getElementById('pay-once').addEventListener('click', payOnce);
+  </script>
+</html>
