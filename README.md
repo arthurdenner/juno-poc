@@ -1,6 +1,6 @@
 # Juno POC
 
-Testing the Juno API 2.0 to understand how single payments and recurrent payments work using their Sandbox environment.
+Testing the [Juno API 2.0](https://dev.juno.com.br/api/v2) to understand how single payments and recurrent payments work using their Sandbox environment.
 
 ## How to run it
 

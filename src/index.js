@@ -139,7 +139,6 @@ const performRecurrentPayment = async ({ billing, charge }) => {
   );
 
   console.log(chalk.green('Recurrent payment done'));
-  console.log(payments);
 };
 
 const tokenizeCard = ({ accessToken, creditCardHash }) =>
@@ -209,7 +208,6 @@ app.post('/pay-recurrent', async (req, res) => {
     // Tokenized if no card is stored
     if (!creditCardId) {
       const tokenizedCard = await tokenizeCard({ accessToken, creditCardHash });
-      console.log(tokenizedCard);
       creditCardId = tokenizedCard.creditCardId;
     }
 
@@ -226,7 +224,6 @@ app.post('/pay-recurrent', async (req, res) => {
     res.status(200).json({ billing, charge });
   } catch (err) {
     console.error(chalk.red('Recurrent payment error'));
-    console.error(err);
     res.status(500).send(err);
   }
 });
