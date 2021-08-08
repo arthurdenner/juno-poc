@@ -1,3 +1,5 @@
+require('dotenv-safe').config();
+
 const axios = require('axios');
 const chalk = require('chalk');
 const addMonths = require('date-fns/addMonths');
@@ -13,11 +15,7 @@ let intervalId = null;
 let lastDueDate = null;
 
 const JUNO_BASE_URL = 'https://sandbox.boletobancario.com';
-const JUNO_PRIVATE_KEY =
-  '1B2023512AE996041F15929BCB0E3DE1E9563105BA8B1F1511FF3A675032B48E';
-// Cll0e074SanANu5L:[&fj}mz0R?c!tZ%Gw4_IEYG8lcS2>gwe in base64
-const JUNO_CREDENTIALS =
-  'Q2xsMGUwNzRTYW5BTnU1TDpbJmZqfW16MFI/YyF0WiVHdzRfSUVZRzhsY1MyPmd3ZQ==';
+const { JUNO_CREDENTIALS, JUNO_PRIVATE_KEY } = process.env;
 
 const app = express();
 const client = axios.create({
