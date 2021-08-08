@@ -14,6 +14,8 @@
       Confirmado
     </label>
     <button id="pay-once">Pagamento único</button>
+    <button id="pay-recurrent">Pagamento recorrente</button>
+    <button id="stop-recurrence">Parar pagamento recorrente</button>
   </body>
 
   <script
@@ -25,7 +27,8 @@
       'A61B53A00A7E454CC6EE545D251E170A8690CB494750B37249EA746DAFAF9B73';
     const checkout = new DirectCheckout(JUNO_PUBLIC_KEY, false);
 
-    function payOnce() {
+    function pay() {
+      const route = this.id;
       const confirmed = document.getElementById('confirmed').checked;
       const cardData = {
         cardNumber: '5420942354118402',
@@ -39,9 +42,8 @@
         cardData,
         (cardHash) => {
           console.log({ cardHash });
-          fetch(`/pay-once?creditCardHash=${cardHash}&confirmed=${confirmed}`, {
-            method: 'POST',
-          })
+          const url = `/${route}?creditCardHash=${cardHash}&confirmed=${confirmed}`;
+          fetch(url, { method: 'POST' })
             .then((res) => res.json())
             .then(console.log)
             .catch(console.error);
@@ -50,6 +52,15 @@
       );
     }
 
-    document.getElementById('pay-once').addEventListener('click', payOnce);
+    function stop() {
+      const route = this.id;
+      fetch(`/${route}`, { method: 'POST' })
+        .then(console.log)
+        .catch(console.error);
+    }
+
+    document.getElementById('pay-once').addEventListener('click', pay);
+    document.getElementById('pay-recurrent').addEventListener('click', pay);
+    document.getElementById('stop-recurrence').addEventListener('click', stop);
   </script>
 </html>

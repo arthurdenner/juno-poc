@@ -3,6 +3,11 @@ const chalk = require('chalk');
 const express = require('express');
 const faker = require('faker-br');
 
+// Credit card for recurrent payments
+let creditCardId = null;
+// setInterval number
+let intervalId = null;
+
 const JUNO_BASE_URL = 'https://sandbox.boletobancario.com';
 const JUNO_PRIVATE_KEY =
   '1B2023512AE996041F15929BCB0E3DE1E9563105BA8B1F1511FF3A675032B48E';
@@ -70,39 +75,98 @@ const createCharge = ({ accessToken, billing, charge }) =>
     }
   );
 
+const performPayment = ({
+  accessToken,
+  billing,
+  chargeId,
+  creditCardDetails,
+  delayed,
+}) =>
+  client.post(
+    '/api-integration/payments',
+    {
+      chargeId,
+      billing: {
+        delayed,
+        address: billing.address,
+        email: billing.email,
+      },
+      creditCardDetails,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-Resource-Token': JUNO_PRIVATE_KEY,
+      },
+    }
+  );
+
+const performRecurrentPayment = async ({ billing, charge, delayed }) => {
+  // Get credentials for request
+  const credentials = await getCredentials();
+  const { access_token: accessToken } = credentials;
+  // Create new charge
+  const newCharge = await createCharge({ accessToken, billing, charge });
+  const { charges } = newCharge._embedded;
+
+  // Perform payment for each charge (only one in this case)
+  const payments = await Promise.all(
+    charges.map(({ id }) =>
+      performPayment({
+        accessToken,
+        billing,
+        chargeId: id,
+        delayed,
+        creditCardDetails: {
+          // !Use tokenized id instead of hash
+          creditCardId,
+        },
+      })
+    )
+  );
+
+  console.log(chalk.green('Recurrent payment done'));
+  console.log(payments);
+};
+
+const tokenizeCard = ({ accessToken, creditCardHash }) =>
+  client.post(
+    '/api-integration/credit-cards/tokenization',
+    { creditCardHash },
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'X-Resource-Token': JUNO_PRIVATE_KEY,
+      },
+    }
+  );
+
 app.post('/pay-once', async (req, res) => {
   try {
+    // Extract URL params
     const { confirmed, creditCardHash } = req.query;
-
-    const billing = getBilling();
-    const charge = getCharge();
+    // Get credentials for request
     const credentials = await getCredentials();
     const { access_token: accessToken } = credentials;
+    // Generate data
+    const billing = getBilling();
+    const charge = getCharge();
+    // Create new charge
     const newCharge = await createCharge({ accessToken, billing, charge });
-
     const { charges } = newCharge._embedded;
+    // Perform payment for each charge (only one in this case)
     const payments = await Promise.all(
-      charges.map((charge) =>
-        client.post(
-          '/api-integration/payments',
-          {
-            chargeId: charge.id,
-            billing: {
-              address: billing.address,
-              delayed: confirmed === 'false',
-              email: billing.email,
-            },
-            creditCardDetails: {
-              creditCardHash,
-            },
+      charges.map(({ id }) =>
+        performPayment({
+          accessToken,
+          billing,
+          chargeId: id,
+          delayed: confirmed === 'false',
+          creditCardDetails: {
+            // !Use hash generate in the front
+            creditCardHash,
           },
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'X-Resource-Token': JUNO_PRIVATE_KEY,
-            },
-          }
-        )
+        })
       )
     );
 
@@ -113,6 +177,62 @@ app.post('/pay-once', async (req, res) => {
     console.error(err);
     res.status(500).send(err);
   }
+});
+
+app.post('/pay-recurrent', async (req, res) => {
+  try {
+    if (intervalId) {
+      console.log('Cancelling recurrent payment');
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+
+    // Extract URL params
+    const { confirmed, creditCardHash } = req.query;
+    // Get credentials for request
+    const credentials = await getCredentials();
+    const { access_token: accessToken } = credentials;
+
+    // Tokenized if no card is stored
+    if (!creditCardId) {
+      const tokenizedCard = await tokenizeCard({ accessToken, creditCardHash });
+      console.log(tokenizedCard);
+      creditCardId = tokenizedCard.creditCardId;
+    }
+
+    // Generate data
+    const billing = getBilling();
+    const charge = getCharge();
+
+    // Trigger recurrent payment each 5 seconds
+    intervalId = setInterval(() => {
+      performRecurrentPayment({
+        billing,
+        charge,
+        delayed: confirmed === 'false',
+      });
+    }, 5000);
+
+    console.log(chalk.green('Recurrent payment triggered'));
+    res.status(200).json({ billing, charge });
+  } catch (err) {
+    console.error(chalk.red('Recurrent payment error'));
+    console.error(err);
+    res.status(500).send(err);
+  }
+});
+
+app.post('/stop-recurrence', (_, res) => {
+  if (!intervalId) {
+    console.log('No recurrent payment on going');
+    res.status(404).end();
+    return;
+  }
+
+  console.log('Cancelling recurrent payment');
+  clearInterval(intervalId);
+  intervalId = null;
+  res.status(200).end();
 });
 
 app.use('*', express.static('public'));
