@@ -47,9 +47,9 @@ const getBilling = () => {
   };
 };
 
-const getCharge = () => ({
+const getCharge = (recurrent) => ({
   amount: faker.finance.amount(),
-  description: 'Pagamento único',
+  description: `Pagamento ${recurrent ? 'recorrente' : 'único'}`,
   paymentTypes: ['CREDIT_CARD'],
 });
 
@@ -196,7 +196,10 @@ app.post('/pay-recurrent', async (req, res) => {
     if (intervalId) {
       console.log('Cancelling recurrent payment');
       clearInterval(intervalId);
+      // Reset global variables
+      creditCardId = null;
       intervalId = null;
+      lastDueDate = null;
     }
 
     // Extract URL params
@@ -213,7 +216,7 @@ app.post('/pay-recurrent', async (req, res) => {
 
     // Generate data
     const billing = getBilling();
-    const charge = getCharge();
+    const charge = getCharge(true);
 
     // Trigger recurrent payment each 5 seconds
     intervalId = setInterval(() => {
