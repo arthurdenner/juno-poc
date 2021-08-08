@@ -15,7 +15,7 @@ let intervalId = null;
 let lastDueDate = null;
 
 const JUNO_BASE_URL = 'https://sandbox.boletobancario.com';
-const { JUNO_CREDENTIALS, JUNO_PRIVATE_KEY } = process.env;
+const { JUNO_CREDENTIALS, JUNO_PRIVATE_KEY, PORT = 3000 } = process.env;
 
 const app = express();
 const client = axios.create({
@@ -250,6 +250,6 @@ app.post('/stop-recurrence', (_, res) => {
 
 app.use('*', express.static('public'));
 
-app.listen(3000, () => {
-  console.log('Example app listening on port 3000!');
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
 });
