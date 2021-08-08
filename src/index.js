@@ -1,5 +1,7 @@
 const axios = require('axios');
 const chalk = require('chalk');
+const addMonths = require('date-fns/addMonths');
+const format = require('date-fns/format');
 const express = require('express');
 const faker = require('faker-br');
 
@@ -7,6 +9,8 @@ const faker = require('faker-br');
 let creditCardId = null;
 // setInterval number
 let intervalId = null;
+// Keep track of dueDate for recurrent payments
+let lastDueDate = null;
 
 const JUNO_BASE_URL = 'https://sandbox.boletobancario.com';
 const JUNO_PRIVATE_KEY =
@@ -101,12 +105,23 @@ const performPayment = ({
     }
   );
 
-const performRecurrentPayment = async ({ billing, charge, delayed }) => {
+const performRecurrentPayment = async ({ billing, charge }) => {
   // Get credentials for request
   const credentials = await getCredentials();
   const { access_token: accessToken } = credentials;
+  // Only delay payments if not the first
+  const delayed = Boolean(lastDueDate);
+  // Update dueDate
+  lastDueDate = lastDueDate ? addMonths(lastDueDate, 1) : new Date();
   // Create new charge
-  const newCharge = await createCharge({ accessToken, billing, charge });
+  const newCharge = await createCharge({
+    accessToken,
+    billing,
+    charge: {
+      ...charge,
+      dueDate: format(lastDueDate, 'yyyy-MM-dd'),
+    },
+  });
   const { charges } = newCharge._embedded;
 
   // Perform payment for each charge (only one in this case)
@@ -171,7 +186,7 @@ app.post('/pay-once', async (req, res) => {
     );
 
     console.log(chalk.green('Single payment done'));
-    res.status(200).send(payments);
+    res.status(200).send({ billing, charge, payments });
   } catch (err) {
     console.error(chalk.red('Single payment error'));
     console.error(err);
@@ -206,11 +221,7 @@ app.post('/pay-recurrent', async (req, res) => {
 
     // Trigger recurrent payment each 5 seconds
     intervalId = setInterval(() => {
-      performRecurrentPayment({
-        billing,
-        charge,
-        delayed: confirmed === 'false',
-      });
+      performRecurrentPayment({ billing, charge });
     }, 5000);
 
     console.log(chalk.green('Recurrent payment triggered'));
@@ -231,7 +242,11 @@ app.post('/stop-recurrence', (_, res) => {
 
   console.log('Cancelling recurrent payment');
   clearInterval(intervalId);
+  // Reset global variables
+  creditCardId = null;
   intervalId = null;
+  lastDueDate = null;
+
   res.status(200).end();
 });
 
