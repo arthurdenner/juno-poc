@@ -1,4 +1,6 @@
-require('dotenv-safe').config();
+require('dotenv-safe').config({
+  allowEmptyValues: true,
+});
 
 const axios = require('axios');
 const chalk = require('chalk');
@@ -15,7 +17,12 @@ let intervalId = null;
 let lastDueDate = null;
 
 const JUNO_BASE_URL = 'https://sandbox.boletobancario.com';
-const { JUNO_CREDENTIALS, JUNO_PRIVATE_KEY, PORT = 3000 } = process.env;
+const {
+  JUNO_CREDENTIALS,
+  JUNO_PRIVATE_KEY,
+  JUNO_SPLIT_TOKEN,
+  PORT = 3000,
+} = process.env;
 
 const app = express();
 const client = axios.create({
@@ -51,6 +58,20 @@ const getCharge = (recurrent) => ({
   amount: faker.finance.amount(),
   description: `Pagamento ${recurrent ? 'recorrente' : 'único'}`,
   paymentTypes: ['CREDIT_CARD'],
+  split: JUNO_SPLIT_TOKEN
+    ? [
+        {
+          recipientToken: JUNO_PRIVATE_KEY,
+          percentage: 50,
+        },
+        {
+          recipientToken: JUNO_SPLIT_TOKEN,
+          percentage: 50,
+          amountRemainder: true,
+          chargeFee: true,
+        },
+      ]
+    : undefined,
 });
 
 const getCredentials = async () =>

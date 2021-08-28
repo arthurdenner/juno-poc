@@ -25,3 +25,7 @@ Testing the [Juno API 2.0](https://dev.juno.com.br/api/v2) to understand how sin
   - PS: Success or failure is only logged to console
 - Cancel a recurrent payment
   - Only possible if a recurrent payment is on going
+
+## Perguntar a Juno
+
+- Podemos criar inúmeros planos ou há um limite?
